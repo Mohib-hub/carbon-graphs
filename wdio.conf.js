@@ -10,7 +10,7 @@ const {
     WDIO_EXTERNAL_PORT,
     // WDIO_INTERNAL_PORT,
 } = process.env;
-console.log("environment"+process.env);
+console.log("environment"+process.env.SAUCE_USERNAME);
 
 //const defaultWebpackPath = path.resolve(process.cwd(), 'webpack.config.js');
 
