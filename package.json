@@ -202,6 +202,7 @@
     "start-heroku": "node build/serve/serve-static-cli --port $PORT --site './.site'",
     "style": "prettier \"src/**/*.*\" \"dev/**/*.*\" \"docs/**/*.md*\" --write",
     "test": "karma start ./build/karma/karma.config.js --single-run --no-auto-watch",
-    "test:persist": "karma start ./build/karma/karma.config.js --no-single-run"
+    "test:persist": "karma start ./build/karma/karma.config.js --no-single-run",
+    "wdio": "npx wdio wdio.conf.js"
   }
 }
