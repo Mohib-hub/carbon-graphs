@@ -25,7 +25,7 @@ jobs:
           script: npm run lint
         - stage: test
           script: npm run test
-        - script: npx wdio wdio.conf.js
+        - script: npm run wdio
         - stage: build
           script: npm run build
         - script: npm run build:dist
