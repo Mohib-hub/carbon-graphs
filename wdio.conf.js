@@ -1,3 +1,19 @@
+const path = require('path');
+const ip = require('ip');
+
+const {
+    CI,
+    // LOCALE,
+    // SITE,
+    // THEME,
+    WDIO_EXTERNAL_HOST,
+    WDIO_EXTERNAL_PORT,
+    // WDIO_INTERNAL_PORT,
+} = process.env;
+console.log("environment"+process.env);
+
+//const defaultWebpackPath = path.resolve(process.cwd(), 'webpack.config.js');
+
 exports.config = {
     //
     // ====================
@@ -7,6 +23,12 @@ exports.config = {
     // WebdriverIO allows it to run your tests in arbitrary locations (e.g. locally or
     // on a remote machine).
     runner: 'local',
+    // Set the path to connect to the selenium container.
+    path: '/wd/hub',
+    // The hostname of the driver server. When building on CI the host is set to standalone-chrome.
+    hostname: CI ? 'standalone-chrome' : 'localhost',
+    // The port the driver server is on.
+    port: 4444,
     //
     // ==================
     // Specify Test Files
@@ -124,7 +146,7 @@ exports.config = {
     // with `/`, the base url gets prepended, not including the path portion of your baseUrl.
     // If your `url` parameter starts without a scheme or `/` (like `some/path`), the base url
     // gets prepended directly.
-    baseUrl: 'http://localhost:9991',
+    baseUrl: `http://${WDIO_EXTERNAL_HOST || 'localhost'}:${WDIO_EXTERNAL_PORT || 9991}`,
     //
     // Default timeout for all waitFor* commands.
     waitforTimeout: 10000,
