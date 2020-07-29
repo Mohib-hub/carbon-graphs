@@ -22,6 +22,9 @@ exports.config = {
     //
     // WebdriverIO allows it to run your tests in arbitrary locations (e.g. locally or
     // on a remote machine).
+
+    user: process.env.SAUCE_USERNAME,
+    key: process.env.SAUCE_ACCESS_KEY,
     runner: 'local',
     // Set the path to connect to the selenium container.
     path: '/wd/hub',
@@ -75,6 +78,7 @@ exports.config = {
         maxInstances: 10,
         //
         browserName: 'chrome',
+        'tunnel-identifier': process.env.TRAVIS_JOB_NUMBER,
         'goog:chromeOptions': {
             args: ['headless', 'disable-gpu'],
         },
@@ -146,8 +150,7 @@ exports.config = {
     // with `/`, the base url gets prepended, not including the path portion of your baseUrl.
     // If your `url` parameter starts without a scheme or `/` (like `some/path`), the base url
     // gets prepended directly.
-    baseUrl: `http://${WDIO_EXTERNAL_HOST || ip.address()}:${WDIO_EXTERNAL_PORT || 9991}`,
-    //
+    baseUrl: `http://${WDIO_EXTERNAL_HOST || 'localhost'}:${WDIO_EXTERNAL_PORT || 9991}`,
     // Default timeout for all waitFor* commands.
     waitforTimeout: 10000,
     //
@@ -162,7 +165,12 @@ exports.config = {
     // Services take over a specific job you don't want to take care of. They enhance
     // your test setup with almost no effort. Unlike plugins, they don't add new
     // commands. Instead, they hook themselves up into the test process.
-    services: [['selenium-standalone']],
+    services: [['selenium-standalone'],    ['sauce', {
+        sauceConnect: true,
+        sauceConnectOpts: {
+            // ...
+        }
+    }]],
 
     // Framework you want to run your specs with.
     // The following are supported: Mocha, Jasmine, and Cucumber
