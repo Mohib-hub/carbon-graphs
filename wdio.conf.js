@@ -78,7 +78,6 @@ exports.config = {
         maxInstances: 10,
         //
         browserName: 'chrome',
-        'tunnel-identifier': process.env.TRAVIS_JOB_NUMBER,
         'goog:chromeOptions': {
             args: ['headless', 'disable-gpu'],
         },
