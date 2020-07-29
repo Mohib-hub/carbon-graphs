@@ -10,7 +10,6 @@ const {
     WDIO_EXTERNAL_PORT,
     // WDIO_INTERNAL_PORT,
 } = process.env;
-console.log("environment"+process.env.SAUCE_USERNAME);
 
 //const defaultWebpackPath = path.resolve(process.cwd(), 'webpack.config.js');
 
@@ -23,8 +22,6 @@ exports.config = {
     // WebdriverIO allows it to run your tests in arbitrary locations (e.g. locally or
     // on a remote machine).
 
-    user: process.env.SAUCE_USERNAME,
-    key: process.env.SAUCE_ACCESS_KEY,
     runner: 'local',
     // Set the path to connect to the selenium container.
     path: '/wd/hub',

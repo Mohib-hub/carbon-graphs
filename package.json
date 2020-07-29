@@ -204,6 +204,6 @@
     "style": "prettier \"src/**/*.*\" \"dev/**/*.*\" \"docs/**/*.md*\" --write",
     "test": "karma start ./build/karma/karma.config.js --single-run --no-auto-watch",
     "test:persist": "karma start ./build/karma/karma.config.js --no-single-run",
-    "wdio": "npx wdio wdio.conf.js"
+    "wdio": " npx wdio ./build/wdio/wdio.conf.js "
   }
 }
