@@ -91,7 +91,8 @@ import {
     renderLineGraphAndLegendPaddingReduced,
     renderSuppressLegend,
     renderLineWithSuppressedTrailingZeros,
-    renderLineLabelTruncation
+    renderLineLabelTruncation,
+    renderBackgroundColor
 } from "./examples/controls/line";
 import {
     renderMultiPairedResultRegion,
@@ -263,6 +264,11 @@ renderSiteApp(
                     pathname: "/line/Suppress-legend",
                     content: renderSuppressLegend,
                     title: "Suppress Legend"
+                },
+                {
+                    pathname: "/line/Background-Color",
+                    content: renderBackgroundColor,
+                    title: "Background Color"
                 }
             ]
         },
