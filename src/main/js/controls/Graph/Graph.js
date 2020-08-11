@@ -8,12 +8,15 @@ import {
     createAxisReferenceLine,
     createXAxisInfoRow,
     getAxesDataRange,
-    getYAxisHeight
+    getYAxisHeight,
+    updateXAxisDomain,
+    translateAxes
 } from "../../helpers/axis";
 import constants, { AXIS_TYPE, COLORS } from "../../helpers/constants";
 import errors from "../../helpers/errors";
 import { createLegend } from "../../helpers/legend";
 import { createRegionContainer } from "../../helpers/region";
+import { createTooltipDiv, destroyTooltipDiv } from "../../helpers/label";
 import styles from "../../helpers/styles";
 import GraphConfig, { processInput, validateContent } from "./GraphConfig";
 import utils from "../../helpers/utils";
@@ -62,14 +65,16 @@ const setCanvasWidth = (container, config) => {
 
 /**
  * Sets the canvas width. Canvas rests within a container.
- * On resize, the canvas is subjected to resizing but its sibling: Legend isnt.
+ * On resize, the canvas is subjected to resizing but its sibling: Legend isn't.
  *
  * @private
  * @param {object} config - config object derived from input JSON
  * @returns {undefined} - returns nothing
  */
 const setCanvasHeight = (config) => {
-    if (config.showLabel || config.axis.x.show) {
+    // Increase the canvas height only when either the x-axis label is specified
+    // and showLabel is set to true or x-axis show is set to true
+    if ((config.showLabel && !!config.axis.x.label) || config.axis.x.show) {
         config.canvasHeight =
             getYAxisHeight(config) +
             (config.padding.bottom +
@@ -110,6 +115,7 @@ const loadInput = (inputJSON) =>
  *  Binds the chart id provided in the input JSON to graph container.
  *  Calculates the axes data ranges.
  *  Updates the axes domains.
+ *  Creates tooltip for the label popup.
  *
  * @private
  * @param {Graph} control - Graph instance
@@ -119,6 +125,7 @@ const beforeInit = (control) => {
     control.graphContainer = d3.select(control.config.bindTo);
     getAxesDataRange({}, "", control.config);
     updateAxesDomain(control.config);
+    createTooltipDiv();
     return control;
 };
 
@@ -215,7 +222,7 @@ class Graph extends Construct {
      * Draw function that is called by the parent control. This draws the Axes, grid, legend and
      * labels for the chart construct.
      *
-     * @description Since we dont have the concept of z-index in visualization,
+     * @description Since we don't have the concept of z-index in visualization,
      * the order of rendering should be following:
      *  * SVG container
      *  * Reference ranges
@@ -399,12 +406,66 @@ class Graph extends Construct {
     }
 
     /**
+     * Updates the graph axisData and content.
+     *
+     * @param {Array} graphData - Input array that holds updated values and key
+     * @returns {Graph} - Graph instance
+     */
+    reflow(graphData) {
+        let position;
+        if (graphData && graphData.values) {
+            this.contentKeys.forEach((key, index) => {
+                if (key === graphData.key) position = index;
+            });
+            if (position >= 0) {
+                if (this.content[position].type === "Bar") {
+                    this.config.axis.x.ticks.values = [];
+                    graphData.values.forEach((v) =>
+                        this.config.axis.x.ticks.values.push(v.x)
+                    );
+                }
+            }
+        }
+
+        updateXAxisDomain(this.config);
+        scaleGraph(this.scale, this.config);
+        translateAxes(this.axis, this.scale, this.config, this.svg);
+
+        if (
+            graphData &&
+            graphData.values &&
+            this.contentKeys.includes(graphData.key)
+        ) {
+            this.content[position].reflow(this, graphData);
+            setAxisPadding(this.config.axisPadding, this.content[position]);
+            getAxesDataRange(
+                this.content[position],
+                this.content[position].config.yAxis,
+                this.config,
+                this.content
+            );
+            if (
+                this.config.allowCalibration &&
+                isRangeModified(
+                    this.config,
+                    this.content[position].config.yAxis
+                )
+            ) {
+                updateAxesDomain(this.config, this.content[position]);
+            }
+        }
+        this.resize();
+        return this;
+    }
+
+    /**
      * Destroys the graph: Container and canvas.
      *
      * @returns {Graph} - Graph instance
      */
     destroy() {
         detachEventHandlers(this);
+        destroyTooltipDiv();
         d3RemoveElement(this.graphContainer, `.${styles.canvas}`);
         d3RemoveElement(this.graphContainer, `.${styles.container}`);
         initConfig(this);

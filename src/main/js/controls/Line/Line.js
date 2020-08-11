@@ -12,7 +12,8 @@ import {
     hideAllRegions,
     removeRegion,
     translateRegion,
-    areRegionsIdentical
+    areRegionsIdentical,
+    createValueRegion
 } from "../../helpers/region";
 import styles from "../../helpers/styles";
 import utils from "../../helpers/utils";
@@ -20,6 +21,9 @@ import {
     clear,
     clickHandler,
     draw,
+    getDataPointValues,
+    drawDataPoints,
+    drawDataLines,
     hoverHandler,
     prepareLegendItems,
     processDataPoints,
@@ -85,6 +89,7 @@ class Line extends GraphContent {
     constructor(input) {
         super();
         this.config = loadInput(input);
+        this.type = "Line";
         this.config.yAxis = getDefaultValue(
             this.config.yAxis,
             constants.Y_AXIS
@@ -102,7 +107,17 @@ class Line extends GraphContent {
     load(graph) {
         this.dataTarget = processDataPoints(graph.config, this.config);
         draw(graph.scale, graph.config, graph.svg, this.dataTarget);
-        if (utils.notEmpty(this.dataTarget.regions)) {
+        if (!utils.isEmptyArray(this.dataTarget.valueRegionSubset)) {
+            createValueRegion(
+                graph.scale,
+                graph.config,
+                graph.svg.select(`.${styles.regionGroup}`),
+                this.dataTarget.valueRegionSubset,
+                `region_${this.dataTarget.key}`,
+                this.config.yAxis,
+                this.dataTarget.interpolationType
+            );
+        } else if (utils.notEmpty(this.dataTarget.regions)) {
             createRegion(
                 graph.scale,
                 graph.config,
@@ -158,26 +173,81 @@ class Line extends GraphContent {
      * @inheritdoc
      */
     resize(graph) {
-        if (utils.notEmpty(this.dataTarget.regions)) {
+        if (
+            utils.notEmpty(this.dataTarget.regions) ||
+            !utils.isEmptyArray(this.dataTarget.valueRegionSubset)
+        ) {
             if (graph.content.length > 1 && !graph.config.shouldHideAllRegion) {
                 if (areRegionsIdentical(graph.svg)) {
                     graph.config.shouldHideAllRegion = false;
                 } else {
-                    hideAllRegions(graph.svg);
                     graph.config.shouldHideAllRegion = true;
                 }
             }
         } else {
-            hideAllRegions(graph.svg);
             graph.config.shouldHideAllRegion = true;
+        }
+        if (graph.config.shouldHideAllRegion) {
+            hideAllRegions(graph.svg);
         }
         translateRegion(
             graph.scale,
             graph.config,
-            graph.svg.select(`.${styles.regionGroup}`)
+            graph.svg.select(
+                `.${styles.regionGroup}`,
+                this.dataTarget.valueRegionSubset
+            ),
+            this.dataTarget.yAxis,
+            !utils.isEmptyArray(this.dataTarget.valueRegionSubset),
+            this.dataTarget.interpolationType
         );
         translateLineGraph(graph.scale, graph.svg, graph.config);
         return this;
+    }
+
+    /**
+     * @inheritdoc
+     */
+    reflow(graph, graphData) {
+        this.config.values = graphData.values;
+        this.dataTarget = processDataPoints(graph.config, this.config);
+        const position = graph.config.shownTargets.lastIndexOf(graphData.key);
+        if (position > -1) {
+            graph.config.shownTargets.splice(position, 1);
+        }
+        const lineSVG = graph.svg
+            .select(`g[aria-describedby="${graphData.key}"]`)
+            .selectAll(`.${styles.line}`)
+            .data([this.dataTarget]);
+        drawDataLines(graph.scale, graph.config, lineSVG.enter());
+        lineSVG.exit().remove();
+
+        if (graph.config.showShapes) {
+            const currentPointsPath = graph.svg
+                .select(`g[aria-describedby="${graphData.key}"]`)
+                .selectAll(`.${styles.pointGroup}`)
+                .data(this.dataTarget);
+            currentPointsPath.exit().remove();
+            const pointPath = graph.svg
+                .select(`g[aria-describedby="${graphData.key}"]`)
+                .select(`.${styles.currentPointsGroup}`)
+                .selectAll(`[class*="${styles.point}"]`)
+                .data(getDataPointValues(this.dataTarget));
+            drawDataPoints(graph.scale, graph.config, pointPath.enter());
+            pointPath
+                .exit()
+                .transition()
+                .call(
+                    constants.d3Transition(
+                        graph.config.settingsDictionary.transition
+                    )
+                )
+                .remove();
+        }
+        this.valuesRange = calculateValuesRange(
+            this.config.values,
+            this.config.yAxis
+        );
     }
 
     /**

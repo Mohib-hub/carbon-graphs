@@ -54,6 +54,8 @@ export default {
     noDataContainer: "carbon-no-data-container",
     noDataLabel: "carbon-no-data-label",
     noDataOverlay: "carbon-no-data-overlay",
+    labelPopupOverlay: "carbon-label-popup-overlay",
+    labelPopupTooltip: "carbon-label-popup-tooltip",
 
     /**
      * Line
@@ -89,6 +91,7 @@ export default {
     region: "carbon-region",
     regionHighlight: "carbon-region-highlight",
     regionBlur: "carbon-region-blur",
+    valueRegion: "carbon-value-region",
     /**
      * Criticality
      */

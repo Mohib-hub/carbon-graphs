@@ -23,7 +23,8 @@ import {
     isSingleTargetDisplayed,
     regionLegendHoverHandler,
     showHideRegion,
-    areRegionsIdentical
+    areRegionsIdentical,
+    createValueRegion
 } from "../../../helpers/region";
 import { getSVGObject } from "../../../helpers/shapeSVG";
 import styles from "../../../helpers/styles";
@@ -202,15 +203,35 @@ const draw = (scale, config, canvasSVG, dataTarget) => {
  * @private
  * @param {object} graphConfig - config object of Graph API
  * @param {object} dataTarget - Data points object
+ * @param {boolean} reflow - flag to check if reflow function called it
  * @returns {object} dataTarget - Updated data target object
  */
-const processDataPoints = (graphConfig, dataTarget) => {
+const processDataPoints = (graphConfig, dataTarget, reflow = false) => {
     const type = graphConfig.axis.x.type;
     const getXDataValues = (x) => {
         if (!isValidAxisType(x, type)) {
             throw new Error(errors.THROW_MSG_INVALID_FORMAT_TYPE);
         }
         return parseTypedValue(x, type);
+    };
+    const valueRegions = {
+        high: [],
+        low: [],
+        mid: []
+    };
+    const regionObject = {
+        high: {
+            color: undefined,
+            values: []
+        },
+        low: {
+            color: undefined,
+            values: []
+        },
+        mid: {
+            color: undefined,
+            values: []
+        }
     };
     // Each value is a pair. Construct enough information so that you can
     // construct a box. Each box would need 3 icons so we need 3 (max) data sets
@@ -232,9 +253,45 @@ const processDataPoints = (graphConfig, dataTarget) => {
                     key: `${dataTarget.key}_${type}`
                 };
                 if (
-                    !utils.hasValue(graphConfig.shownTargets, subset[type].key)
+                    !utils.hasValue(
+                        graphConfig.shownTargets,
+                        subset[type].key
+                    ) &&
+                    !reflow
                 ) {
                     graphConfig.shownTargets.push(subset[type].key);
+                }
+
+                // Generate value regions subset, by extracting the region object from each value
+                if (
+                    !utils.isEmpty(currentValue.region) &&
+                    !utils.isEmpty(currentValue.region.start) &&
+                    !utils.isEmpty(currentValue.region.end)
+                ) {
+                    // If the color is different, then move to new region set.
+                    if (
+                        regionObject[type].color !== currentValue.region.color
+                    ) {
+                        regionObject[type].values.length > 0 &&
+                            valueRegions[type].push(regionObject[type]);
+
+                        regionObject[type] = {
+                            color: currentValue.region.color,
+                            values: []
+                        };
+                    }
+                    regionObject[type].color = currentValue.region.color;
+                    regionObject[type].values.push({
+                        x: getXDataValues(currentValue.x),
+                        start: currentValue.region.start,
+                        end: currentValue.region.end
+                    });
+                } else if (regionObject[type].values.length > 0) {
+                    valueRegions[type].push(regionObject[type]);
+                    regionObject[type] = {
+                        color: undefined,
+                        values: []
+                    };
                 }
             }
         });
@@ -243,6 +300,38 @@ const processDataPoints = (graphConfig, dataTarget) => {
         subset.key = dataTarget.key;
         return subset;
     });
+    const valueRegionSubset = {
+        high: [],
+        low: [],
+        mid: []
+    };
+    let isValueRegionExist = false;
+    // Check if the value region exist and also
+    // Add start and end of a valueRegion to new valueRegion,
+    // This is to cover the start and end data value with region.
+    iterateOnPairType((type) => {
+        if (regionObject[type].values.length > 0) {
+            valueRegions[type].push(regionObject[type]);
+        }
+        valueRegions[type].forEach((region) => {
+            isValueRegionExist = true;
+            valueRegionSubset[type].push(region);
+            if (region.values.length > 1) {
+                valueRegionSubset[type].push({
+                    color: region.color,
+                    values: region.values.slice(0, 1)
+                });
+
+                valueRegionSubset[type].push({
+                    color: region.color,
+                    values: region.values.slice(region.values.length - 1)
+                });
+            }
+        });
+    });
+    dataTarget.valueRegionSubset = isValueRegionExist
+        ? valueRegionSubset
+        : undefined;
     dataTarget.legendOptions = getDefaultLegendOptions(graphConfig, dataTarget);
     return dataTarget;
 };
@@ -320,9 +409,13 @@ const drawPoints = (scale, config, canvasSVG) => {
                     },
                     a11yAttributes: {
                         "aria-hidden":
-                            config.shownTargets.indexOf(
-                                getValue(value, type).key
-                            ) < 0,
+                            document
+                                .querySelector(
+                                    `.${styles.legendItem}[aria-describedby="${
+                                        getValue(value, type).key
+                                    }"]`
+                                )
+                                ?.getAttribute("aria-current") === "false",
                         "aria-describedby": getValue(value, type).key,
                         "aria-disabled": !utils.isFunction(value.onClick)
                     }
@@ -368,7 +461,17 @@ const showLine = (config, boxPath) =>
             d.high &&
             d.low &&
             utils.hasValue(config.shownTargets, d.high.key) &&
-            utils.hasValue(config.shownTargets, d.low.key);
+            utils.hasValue(config.shownTargets, d.low.key) &&
+            document
+                .querySelector(
+                    `.${styles.legendItem}[aria-describedby="${d.high.key}"]`
+                )
+                ?.getAttribute("aria-current") === "true" &&
+            document
+                .querySelector(
+                    `.${styles.legendItem}[aria-describedby="${d.low.key}"]`
+                )
+                ?.getAttribute("aria-current") === "true";
         return d3
             .select(this)
             .select(`.${styles.pairedLine}`)
@@ -411,9 +514,13 @@ const drawCriticalityPoints = (
                     },
                     a11yAttributes: {
                         "aria-hidden":
-                            config.shownTargets.indexOf(
-                                getValue(value, type).key
-                            ) < 0,
+                            document
+                                .querySelector(
+                                    `.${styles.legendItem}[aria-describedby="${
+                                        getValue(value, type).key
+                                    }"]`
+                                )
+                                ?.getAttribute("aria-current") === "false",
                         "aria-describedby": getValue(value, type).key,
                         "aria-disabled": !utils.isFunction(value.onClick)
                     }
@@ -696,7 +803,19 @@ const renderRegion = (scale, config, canvasSVG, dataTarget) => {
         .attr("aria-describedby", `region_${dataTarget.key}`);
     regionPairGroup.call(() => {
         iterateOnPairType((type) => {
-            if (dataTarget.regions[type]) {
+            if (
+                dataTarget.valueRegionSubset &&
+                dataTarget.valueRegionSubset[type]
+            ) {
+                createValueRegion(
+                    scale,
+                    config,
+                    regionPairGroup,
+                    dataTarget.valueRegionSubset[type],
+                    `region_${dataTarget.key}_${type}`,
+                    dataTarget.yAxis
+                );
+            } else if (dataTarget.regions && dataTarget.regions[type]) {
                 if (
                     !utils.isArray(dataTarget.regions[type]) ||
                     utils.isUndefined(dataTarget.regions[type])

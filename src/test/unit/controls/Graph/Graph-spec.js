@@ -761,7 +761,7 @@ describe("Graph", () => {
                 fetchElementByClass(styles.container).style.backgroundColor
             ).toEqual("");
         });
-        it("sets background as transparent when opaqueBackground is undefined", () => {
+        it("sets background as transparent when opaqueBackground is set to undefined", () => {
             const input = getAxes(axisDefault);
             new Graph(input);
             expect(
